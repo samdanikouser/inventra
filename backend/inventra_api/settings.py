@@ -31,7 +31,9 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get(
+    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1'
+).split(',') if h.strip()]
 
 # Render injects RENDER_EXTERNAL_HOSTNAME at runtime — auto-add it.
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
@@ -40,6 +42,23 @@ if RENDER_EXTERNAL_HOSTNAME:
 
 # Trust Render's proxy so request.is_secure() returns True on HTTPS.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Django 4+ requires explicit CSRF trust for HTTPS origins (admin login,
+# any POST form). Build the list from DJANGO_ALLOWED_HOSTS plus the
+# Render-injected hostname.
+CSRF_TRUSTED_ORIGINS = []
+for host in ALLOWED_HOSTS:
+    if not host or host in ('localhost', '127.0.0.1'):
+        continue
+    # Wildcard hosts like ".onrender.com" become "https://*.onrender.com".
+    if host.startswith('.'):
+        CSRF_TRUSTED_ORIGINS.append(f'https://*{host}')
+    else:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+
+# Also accept any explicit comma-separated overrides via env var.
+extra = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS += [o.strip() for o in extra.split(',') if o.strip()]
 
 
 # ---------------------------------------------------------------------------
