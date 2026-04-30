@@ -278,3 +278,7 @@ LOGGING = {
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Ensure the logs directory exists at boot — file logging will fail otherwise
+# on freshly provisioned environments like Render.
+(BASE_DIR / 'logs').mkdir(exist_ok=True)
