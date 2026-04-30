@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Inventra",
+  "description": "Comprehensive inventory management for F\u0026B outlets with breakage tracking, stock take, and barcode generation.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

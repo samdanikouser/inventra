@@ -1,0 +1,143 @@
+{
+  "entities": {
+    "Item": {
+      "title": "Inventory Item",
+      "description": "An item in the inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "unit": { "type": "string" },
+        "minStock": { "type": "number" },
+        "parLevel": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "photo": { "type": "string" },
+        "stocks": { "type": "object" }
+      },
+      "required": ["id", "sku", "name", "category", "unit", "minStock", "parLevel", "unitCost", "stocks"]
+    },
+    "Transaction": {
+      "title": "Inventory Transaction",
+      "description": "A movement or adjustment of inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ref": { "type": "string" },
+        "type": { "type": "string" },
+        "itemId": { "type": "string" },
+        "outletId": { "type": "string" },
+        "targetOutletId": { "type": "string" },
+        "quantityDelta": { "type": "number" },
+        "value": { "type": "number" },
+        "date": { "type": "string" },
+        "staffId": { "type": "string" },
+        "notes": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "reason": { "type": "string" },
+        "photo": { "type": "string" },
+        "approvedBy": { "type": "string" }
+      },
+      "required": ["id", "ref", "type", "itemId", "outletId", "quantityDelta", "value", "date", "staffId"]
+    },
+    "Outlet": {
+      "title": "Outlet",
+      "description": "A physical location or department",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "A vendor providing items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "email": { "type": "string" },
+        "leadTimeDays": { "type": "number" }
+      },
+      "required": ["id", "name", "contact", "email", "leadTimeDays"]
+    },
+    "User": {
+      "title": "User Profile",
+      "description": "User metadata and roles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["STAFF", "SUPERVISOR", "MANAGER"] }
+      },
+      "required": ["id", "name", "role"]
+    },
+    "StockTakeSession": {
+      "title": "Stock Take Session",
+      "description": "A session for counting physical inventory",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ref": { "type": "string" },
+        "date": { "type": "string" },
+        "outletId": { "type": "string" },
+        "categories": { "type": "array" },
+        "status": { "type": "string" },
+        "items": { "type": "array" },
+        "staffId": { "type": "string" },
+        "managerId": { "type": "string" },
+        "report": { "type": "object" }
+      },
+      "required": ["id", "ref", "date", "outletId", "categories", "status", "items", "staffId"]
+    },
+    "InventorySnapshot": {
+      "title": "Inventory Snapshot",
+      "description": "A monthly closing report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "month": { "type": "string" },
+        "closedAt": { "type": "string" },
+        "closedBy": { "type": "string" },
+        "totalValuation": { "type": "number" },
+        "items": { "type": "array" },
+        "outletBreakdown": { "type": "object" }
+      },
+      "required": ["id", "month", "closedAt", "closedBy", "totalValuation", "items", "outletBreakdown"]
+    }
+  },
+  "firestore": {
+    "/items/{itemId}": {
+      "schema": "Item",
+      "description": "Inventory items"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Inventory transactions"
+    },
+    "/outlets/{outletId}": {
+      "schema": "Outlet",
+      "description": "Physical outlets"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/stockTakeSessions/{sessionId}": {
+      "schema": "StockTakeSession",
+      "description": "Stock take sessions"
+    },
+    "/snapshots/{snapshotId}": {
+      "schema": "InventorySnapshot",
+      "description": "Monthly inventory snapshots"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.sqlite3-journal
+backend/venv/
+backend/staticfiles/
+backend/media/
+backend/logs/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
