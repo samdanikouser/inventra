@@ -1,5 +1,5 @@
 # Core
-django>=6.0,<7.0
+django>=4.2,<5.0
 djangorestframework>=3.15,<4.0
 djangorestframework-simplejwt>=5.3,<6.0
 
@@ -8,8 +8,12 @@ django-cors-headers>=4.4,<5.0
 django-filter>=24.0
 pillow>=10.0
 
-# Database (uncomment for production)
-# psycopg2-binary>=2.9,<3.0
+# Database (PostgreSQL in production)
+psycopg2-binary>=2.9,<3.0
 
-# Production server
-# gunicorn>=22.0,<23.0
+# Production server + static files
+gunicorn>=22.0,<23.0
+whitenoise>=6.6,<7.0
+
+# Env file support (optional but convenient)
+python-dotenv>=1.0,<2.0
