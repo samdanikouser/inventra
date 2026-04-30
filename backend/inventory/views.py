@@ -37,6 +37,16 @@ logger = logging.getLogger('inventory')
 # ---------------------------------------------------------------------------
 
 @api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def health_view(request):
+    """Public liveness probe. Used by Render's health-check.
+
+    Cheap, no auth, no DB. Returns 200 as long as the WSGI worker is up.
+    """
+    return Response({'status': 'ok'})
+
+
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def me_view(request):
     """Return the current user's profile + role token.
