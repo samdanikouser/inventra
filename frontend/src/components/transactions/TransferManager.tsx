@@ -14,6 +14,7 @@ import api, { endpoints, fetchAllPages } from '@/lib/api';
 import { Item, Transaction, Outlet, InventorySnapshot } from '@/types/inventory';
 import { formatKD } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 export const TransferManager = () => {
   const queryClient = useQueryClient();
@@ -105,19 +106,15 @@ export const TransferManager = () => {
     [transactions],
   );
 
-  const monthlyVolume = useMemo(() => {
-    const m = new Date().toISOString().slice(0, 7);
-    return transfers
-      .filter((t) => t.date.startsWith(m))
-      .reduce((acc, t) => acc + Math.abs(t.quantity_delta), 0);
-  }, [transfers]);
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
 
-  const monthlyValue = useMemo(() => {
-    const m = new Date().toISOString().slice(0, 7);
-    return transfers
-      .filter((t) => t.date.startsWith(m))
-      .reduce((acc, t) => acc + Number(t.value), 0);
-  }, [transfers]);
+  const filteredTransfers = useMemo(
+    () => transfers.filter(filterByDate),
+    [transfers, filterByDate],
+  );
+
+  const periodVolume = filteredTransfers.reduce((acc, t) => acc + Math.abs(t.quantity_delta), 0);
+  const periodValue = filteredTransfers.reduce((acc, t) => acc + Number(t.value), 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -146,18 +143,24 @@ export const TransferManager = () => {
       </header>
 
       <div className="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
+        <div className="flex items-center justify-between">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          <span className="text-xs text-[#9CA3AF] font-medium">
+            {filteredTransfers.length} of {transfers.length} records
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white border border-[#E5E7EB] p-6 rounded-2xl shadow-sm space-y-1">
-            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Total Transfers</p>
-            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{transfers.length}</p>
+            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Filtered Transfers</p>
+            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{filteredTransfers.length}</p>
           </div>
           <div className="bg-white border border-[#E5E7EB] p-6 rounded-2xl shadow-sm space-y-1">
-            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Volume Moved (MTD)</p>
-            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{monthlyVolume} units</p>
+            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Volume Moved</p>
+            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{periodVolume} units</p>
           </div>
           <div className="bg-white border border-[#E5E7EB] p-6 rounded-2xl shadow-sm space-y-1">
-            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Value Moved (MTD)</p>
-            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{formatKD(monthlyValue)}</p>
+            <p className="text-[10px] text-[#6B7280] font-bold uppercase tracking-wider">Value Moved</p>
+            <p className="text-2xl font-light tracking-tight text-[#1A1A1A]">{formatKD(periodValue)}</p>
           </div>
         </div>
 
@@ -177,7 +180,7 @@ export const TransferManager = () => {
                 </tr>
               </thead>
               <tbody>
-                {transfers.map((tx) => (
+                {filteredTransfers.map((tx) => (
                   <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
                     <td className="px-6 py-4 font-mono text-xs font-bold">{tx.ref}</td>
                     <td className="px-6 py-4 font-bold">{tx.item_name}</td>

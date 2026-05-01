@@ -14,6 +14,7 @@ import { Transaction, Item, Outlet, InventorySnapshot } from '@/types/inventory'
 import { formatKD, cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { BarChart, Bar, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 const BREAKAGE_REASONS = ['Accidental Drop', 'Expired', 'Damaged during transport', 'Defective', 'Worn out'];
 
@@ -105,18 +106,25 @@ export const BreakageLog = () => {
     [transactions],
   );
 
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
+
+  const filteredBreakages = useMemo(
+    () => breakages.filter(filterByDate),
+    [breakages, filterByDate],
+  );
+
   const chartData = useMemo(
     () =>
       outlets.map((o) => ({
         name: o.name,
-        value: breakages
+        value: filteredBreakages
           .filter((t) => t.outlet === o.id)
           .reduce((acc, t) => acc + Number(t.value), 0),
       })),
-    [outlets, breakages],
+    [outlets, filteredBreakages],
   );
 
-  const totalLoss = breakages.reduce((acc, t) => acc + Number(t.value), 0);
+  const totalLoss = filteredBreakages.reduce((acc, t) => acc + Number(t.value), 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -158,7 +166,13 @@ export const BreakageLog = () => {
         </button>
       </header>
 
-      <div className="p-8 flex-1 overflow-y-auto scrollbar-hide">
+      <div className="p-8 flex-1 overflow-y-auto scrollbar-hide space-y-6">
+        <div className="flex items-center justify-between">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          <span className="text-xs text-[#9CA3AF] font-medium">
+            {filteredBreakages.length} records · Loss: {formatKD(totalLoss)}
+          </span>
+        </div>
         {activeTab === 'log' ? (
           <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
             <table className="w-full text-left font-sans text-sm border-collapse">
@@ -175,7 +189,7 @@ export const BreakageLog = () => {
                 </tr>
               </thead>
               <tbody>
-                {breakages.map((tx) => (
+                {filteredBreakages.map((tx) => (
                   <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
                     <td className="px-6 py-4 font-mono text-xs font-bold">{tx.ref}</td>
                     <td className="px-6 py-4 font-bold">{tx.item_name}</td>

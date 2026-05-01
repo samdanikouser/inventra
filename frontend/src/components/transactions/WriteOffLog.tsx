@@ -7,6 +7,7 @@ import api, { endpoints, fetchAllPages } from '@/lib/api';
 import { Transaction, Item, Outlet, InventorySnapshot } from '@/types/inventory';
 import { formatKD } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 const WRITE_OFF_REASONS = ['Expired', 'Damaged', 'Theft', 'Obsolete', 'Health & Safety', 'Other'];
 
@@ -95,7 +96,15 @@ export const WriteOffLog = () => {
     () => transactions.filter((t) => t.type === 'WRITE_OFF'),
     [transactions],
   );
-  const totalLoss = writeOffs.reduce((acc, t) => acc + Number(t.value), 0);
+
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
+
+  const filteredWriteOffs = useMemo(
+    () => writeOffs.filter(filterByDate),
+    [writeOffs, filterByDate],
+  );
+
+  const totalLoss = filteredWriteOffs.reduce((acc, t) => acc + Number(t.value), 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -124,6 +133,12 @@ export const WriteOffLog = () => {
       </header>
 
       <div className="p-8 flex-1 overflow-y-auto space-y-6 scrollbar-hide">
+        <div className="flex items-center justify-between">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          <span className="text-xs text-[#9CA3AF] font-medium">
+            {filteredWriteOffs.length} records
+          </span>
+        </div>
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
           <table className="w-full text-left font-sans text-sm border-collapse">
             <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
@@ -139,7 +154,7 @@ export const WriteOffLog = () => {
               </tr>
             </thead>
             <tbody>
-              {writeOffs.map((tx) => (
+              {filteredWriteOffs.map((tx) => (
                 <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
                   <td className="px-6 py-4 font-mono text-xs font-bold">{tx.ref}</td>
                   <td className="px-6 py-4 font-bold">{tx.item_name}</td>

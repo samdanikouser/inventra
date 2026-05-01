@@ -13,6 +13,7 @@ import api, { endpoints, fetchAllPages } from '@/lib/api';
 import { StockTakeSession, Outlet } from '@/types/inventory';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 export const StockTakeManager = () => {
   const queryClient = useQueryClient();
@@ -34,6 +35,13 @@ export const StockTakeManager = () => {
   });
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
+
+  const filteredSessions = useMemo(
+    () => sessions.filter(filterByDate),
+    [sessions, filterByDate],
+  );
 
   const createSession = useMutation({
     mutationFn: (data: any) => api.post(endpoints.stockTakes, data),
@@ -135,6 +143,13 @@ export const StockTakeManager = () => {
         )}
 
         {step === 'LIST' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <DateRangeFilter value={dateRange} onChange={setDateRange} />
+              <span className="text-xs text-[#9CA3AF] font-medium">
+                {filteredSessions.length} sessions
+              </span>
+            </div>
           <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
             <table className="w-full text-left font-sans text-sm border-collapse">
               <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
@@ -148,7 +163,7 @@ export const StockTakeManager = () => {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((session) => {
+                {filteredSessions.map((session) => {
                   const progress = calculateProgress(session);
                   return (
                     <tr key={session.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
@@ -197,11 +212,12 @@ export const StockTakeManager = () => {
                 })}
               </tbody>
             </table>
-            {sessions.length === 0 && (
+            {filteredSessions.length === 0 && (
               <p className="text-center py-12 text-xs text-[#9CA3AF] font-bold uppercase tracking-widest">
-                No stock take sessions yet
+                No stock take sessions in this period
               </p>
             )}
+          </div>
           </div>
         )}
 

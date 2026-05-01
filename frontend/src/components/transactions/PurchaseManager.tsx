@@ -14,6 +14,7 @@ import api, { endpoints, fetchAllPages } from '@/lib/api';
 import { Item, Supplier, Transaction, Outlet, InventorySnapshot } from '@/types/inventory';
 import { formatKD, cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 const PAGE_SIZE = 30;
 
@@ -106,12 +107,15 @@ export const PurchaseManager = () => {
     [transactions],
   );
 
-  const monthInbound = useMemo(() => {
-    const m = new Date().toISOString().slice(0, 7);
-    return purchases.filter((p) => p.date.startsWith(m));
-  }, [purchases]);
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
 
-  const visiblePurchases = purchases.slice(0, page * PAGE_SIZE);
+  const filteredPurchases = useMemo(
+    () => purchases.filter(filterByDate),
+    [purchases, filterByDate],
+  );
+
+  const periodInbound = filteredPurchases;
+  const visiblePurchases = filteredPurchases.slice(0, page * PAGE_SIZE);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -140,16 +144,22 @@ export const PurchaseManager = () => {
       </header>
 
       <div className="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
+        <div className="flex items-center justify-between">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          <span className="text-xs text-[#9CA3AF] font-medium">
+            {filteredPurchases.length} of {purchases.length} records
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Stat label="Active POs" value={String(purchases.length)} />
+          <Stat label="Filtered POs" value={String(filteredPurchases.length)} />
           <Stat
-            label="Stock Inbound (MTD)"
-            value={`+${monthInbound.reduce((acc, t) => acc + t.quantity_delta, 0)} units`}
+            label="Stock Inbound"
+            value={`+${periodInbound.reduce((acc, t) => acc + t.quantity_delta, 0)} units`}
             color="text-emerald-600"
           />
           <Stat
-            label="Total Spend (MTD)"
-            value={formatKD(monthInbound.reduce((acc, t) => acc + Number(t.value), 0))}
+            label="Total Spend"
+            value={formatKD(periodInbound.reduce((acc, t) => acc + Number(t.value), 0))}
           />
         </div>
 
