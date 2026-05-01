@@ -130,7 +130,7 @@ export const StockAdjustmentModal = ({ item, outlets, isOpen, onClose }: StockAd
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Scale className="text-violet-600 w-5 h-5" /> Set Stock Levels
+                  <Scale className="text-violet-600 w-5 h-5" /> Opening Balance
                 </h2>
                 <p className="text-sm text-[#6B7280] mt-0.5">
                   {item.sku} — {item.name}
@@ -149,11 +149,12 @@ export const StockAdjustmentModal = ({ item, outlets, isOpen, onClose }: StockAd
               <AlertCircle className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-xs font-bold text-violet-900 uppercase tracking-wide">
-                  Opening Balance / Adjustment
+                  Opening Balance / Stock Adjustment
                 </p>
                 <p className="text-sm text-violet-800 leading-relaxed">
-                  Enter the actual physical count at each outlet. The system will create
-                  adjustment transactions for the difference, preserving full audit trail.
+                  Enter the actual physical count at each outlet. Use this for initial
+                  stock seeding or one-off corrections. For routine periodic counts, use the
+                  Stock Take module instead.
                 </p>
               </div>
             </div>

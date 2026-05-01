@@ -560,7 +560,7 @@ export const InventoryList = () => {
                             <button
                               onClick={() => setAdjItem(item)}
                               className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-violet-50 hover:border-violet-200 text-[#6B7280] hover:text-violet-600 transition-all shadow-sm"
-                              title="Set stock levels"
+                              title="Opening balance"
                             >
                               <Scale className="w-3.5 h-3.5" />
                             </button>
