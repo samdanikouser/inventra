@@ -375,7 +375,11 @@ export const InventoryList = () => {
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-[#1A1A1A]">Master Inventory</h2>
           <span className="text-sm text-[#9CA3AF]">|</span>
-          <span className="text-sm text-[#6B7280]">{filteredItems.length} SKUs Listed</span>
+          <span className="text-sm text-[#6B7280]">
+            {filteredItems.length === items.length
+              ? `${items.length} Items`
+              : `${filteredItems.length} of ${items.length} Items`}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           {isManager && (
