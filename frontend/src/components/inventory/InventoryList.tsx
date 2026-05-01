@@ -17,6 +17,7 @@ import {
   Lock as LockIcon,
   Camera,
   Scale,
+  Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,7 @@ import {
 import { formatKD, cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModal';
+import { ItemDetailModal } from '@/components/inventory/ItemDetailModal';
 
 const BREAKAGE_REASONS = ['Accidental Drop', 'Expired', 'Damaged during transport', 'Defective', 'Worn out'];
 const WRITE_OFF_REASONS = ['Damaged', 'Expired', 'Theft', 'Obsolete', 'Sold'];
@@ -99,6 +101,9 @@ export const InventoryList = () => {
 
   // Stock adjustment modal state
   const [adjItem, setAdjItem] = useState<Item | null>(null);
+
+  // Item detail modal state
+  const [detailItem, setDetailItem] = useState<Item | null>(null);
 
   // Data
   const { data: items = [] } = useQuery<Item[]>({
@@ -512,7 +517,11 @@ export const InventoryList = () => {
                   <div className="p-5 flex flex-col flex-1 space-y-4">
                     <div className="space-y-1">
                       <div className="flex items-start justify-between gap-4">
-                        <h3 className="text-sm font-bold text-[#1A1A1A] leading-tight line-clamp-2 min-h-[2.5rem]">
+                        <h3
+                          className="text-sm font-bold text-[#1A1A1A] leading-tight line-clamp-2 min-h-[2.5rem] cursor-pointer hover:text-violet-600 transition-colors"
+                          onClick={() => setDetailItem(item)}
+                          title="View item lifecycle"
+                        >
                           {item.name}
                         </h3>
                         <div
@@ -642,7 +651,13 @@ export const InventoryList = () => {
                               <Package className="w-4 h-4 text-[#E5E7EB]" />
                             )}
                           </div>
-                          <span className="font-bold text-[#1A1A1A]">{item.name}</span>
+                          <span
+                            className="font-bold text-[#1A1A1A] cursor-pointer hover:text-violet-600 transition-colors"
+                            onClick={() => setDetailItem(item)}
+                            title="View item lifecycle"
+                          >
+                            {item.name}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[10px] font-bold uppercase text-[#9CA3AF]">{item.category_name}</td>
@@ -673,11 +688,18 @@ export const InventoryList = () => {
                             <button
                               onClick={() => setAdjItem(item)}
                               className="p-1.5 text-[#6B7280] hover:text-violet-600 transition-colors"
-                              title="Set stock levels"
+                              title="Opening balance"
                             >
                               <Scale className="w-4 h-4" />
                             </button>
                           )}
+                          <button
+                            onClick={() => setDetailItem(item)}
+                            className="p-1.5 text-[#6B7280] hover:text-violet-600 transition-colors"
+                            title="Item lifecycle"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => openTxModal(item, 'PURCHASE')}
                             className="p-1.5 text-[#6B7280] hover:text-emerald-600 transition-colors"
@@ -1137,6 +1159,15 @@ export const InventoryList = () => {
           outlets={outlets}
           isOpen={!!adjItem}
           onClose={() => setAdjItem(null)}
+        />
+      )}
+
+      {/* ---------- Item Detail modal ---------- */}
+      {detailItem && (
+        <ItemDetailModal
+          item={detailItem}
+          isOpen={!!detailItem}
+          onClose={() => setDetailItem(null)}
         />
       )}
     </div>
