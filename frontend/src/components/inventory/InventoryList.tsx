@@ -16,6 +16,7 @@ import {
   Pencil,
   Lock as LockIcon,
   Camera,
+  Scale,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -30,6 +31,7 @@ import {
 } from '@/types/inventory';
 import { formatKD, cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModal';
 
 const BREAKAGE_REASONS = ['Accidental Drop', 'Expired', 'Damaged during transport', 'Defective', 'Worn out'];
 const WRITE_OFF_REASONS = ['Damaged', 'Expired', 'Theft', 'Obsolete', 'Sold'];
@@ -94,6 +96,9 @@ export const InventoryList = () => {
   const [txSupplier, setTxSupplier] = useState<number | ''>('');
   const [txNotes, setTxNotes] = useState('');
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Stock adjustment modal state
+  const [adjItem, setAdjItem] = useState<Item | null>(null);
 
   // Data
   const { data: items = [] } = useQuery<Item[]>({
@@ -553,6 +558,15 @@ export const InventoryList = () => {
                         <div className="flex gap-2">
                           {role !== 'STAFF' && (
                             <button
+                              onClick={() => setAdjItem(item)}
+                              className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-violet-50 hover:border-violet-200 text-[#6B7280] hover:text-violet-600 transition-all shadow-sm"
+                              title="Set stock levels"
+                            >
+                              <Scale className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {role !== 'STAFF' && (
+                            <button
                               onClick={() => openTxModal(item, 'TRANSFER')}
                               className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 hover:border-blue-200 text-[#6B7280] hover:text-blue-600 transition-all shadow-sm"
                               title="Transfer"
@@ -649,6 +663,15 @@ export const InventoryList = () => {
                               title="Edit"
                             >
                               <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(role === 'MANAGER' || role === 'SUPERVISOR') && (
+                            <button
+                              onClick={() => setAdjItem(item)}
+                              className="p-1.5 text-[#6B7280] hover:text-violet-600 transition-colors"
+                              title="Set stock levels"
+                            >
+                              <Scale className="w-4 h-4" />
                             </button>
                           )}
                           <button
@@ -1102,6 +1125,16 @@ export const InventoryList = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ---------- Stock Adjustment modal ---------- */}
+      {adjItem && (
+        <StockAdjustmentModal
+          item={adjItem}
+          outlets={outlets}
+          isOpen={!!adjItem}
+          onClose={() => setAdjItem(null)}
+        />
+      )}
     </div>
   );
 };
