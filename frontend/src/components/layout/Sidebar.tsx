@@ -19,6 +19,7 @@ import {
   ArrowRightLeft,
   ChevronRight,
   PackagePlus,
+  Tags,
   LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ const menuItems: MenuItem[] = [
   { id: 'write-offs', label: 'Write-offs', icon: Trash2, href: '/write-offs' },
   { id: 'outlets', label: 'Outlets', icon: Warehouse, href: '/outlets' },
   { id: 'suppliers', label: 'Suppliers', icon: Users, href: '/suppliers' },
+  { id: 'categories', label: 'Categories', icon: Tags, href: '/categories' },
   { id: 'reports', label: 'Monthly Reports', icon: BarChart3, href: '/reports' },
   { id: 'reorder', label: 'Reorder List', icon: AlertCircle, href: '/reorder' },
   { id: 'barcodes', label: 'Barcode Manager', icon: QrCode, href: '/barcodes' },
