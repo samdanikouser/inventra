@@ -139,7 +139,7 @@ export const PurchaseManager = () => {
           disabled={isMonthLocked}
           className="px-4 py-2 bg-black text-white rounded-lg text-xs font-bold hover:opacity-80 transition-opacity flex items-center gap-2 shadow-lg shadow-black/10 disabled:opacity-30"
         >
-          <Plus className="w-3.5 h-3.5" /> New Purchase Order
+          <Plus className="w-3.5 h-3.5" /> New Receive Order
         </button>
       </header>
 
@@ -240,7 +240,7 @@ export const PurchaseManager = () => {
             >
               <div className="flex items-start justify-between mb-6">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <PackagePlus className="text-emerald-600 w-5 h-5" /> New Purchase Order
+                  <PackagePlus className="text-emerald-600 w-5 h-5" /> New Receive Order
                 </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
