@@ -23,6 +23,8 @@ export const PurchaseManager = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   const [formData, setFormData] = useState({
     item: '',
     outlet: '',
@@ -30,6 +32,7 @@ export const PurchaseManager = () => {
     quantity_delta: 0,
     unitCost: 0,
     notes: '',
+    date: todayStr,
   });
 
   const { data: items = [] } = useQuery<Item[]>({
@@ -61,7 +64,7 @@ export const PurchaseManager = () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsModalOpen(false);
-      setFormData({ item: '', outlet: '', supplier: '', quantity_delta: 0, unitCost: 0, notes: '' });
+      setFormData({ item: '', outlet: '', supplier: '', quantity_delta: 0, unitCost: 0, notes: '', date: todayStr });
       setError(null);
     },
     onError: (e: any) => {
@@ -94,6 +97,7 @@ export const PurchaseManager = () => {
       quantity_delta: formData.quantity_delta,
       value: formData.quantity_delta * formData.unitCost,
       notes: formData.notes,
+      date: formData.date ? `${formData.date}T00:00:00Z` : undefined,
     });
   };
 
@@ -312,8 +316,18 @@ export const PurchaseManager = () => {
                     />
                   </Field>
                 </div>
-                <div className="text-[11px] text-[#6B7280]">
-                  Total: <span className="font-bold text-[#1A1A1A]">{formatKD(formData.quantity_delta * formData.unitCost)}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-[11px] text-[#6B7280] flex items-end">
+                    Total: <span className="font-bold text-[#1A1A1A] ml-1">{formatKD(formData.quantity_delta * formData.unitCost)}</span>
+                  </div>
+                  <Field label="Date">
+                    <input
+                      type="date"
+                      className="w-full p-3 bg-gray-50 border border-[#E5E7EB] rounded-xl text-sm"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </Field>
                 </div>
                 <Field label="Notes">
                   <textarea

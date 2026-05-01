@@ -186,12 +186,15 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     @db_transaction.atomic
     def create(self, request, *args, **kwargs):
-        # Period lock check (uses today since `date` is auto_now_add)
-        if _month_locked(datetime.now()):
+        # Period lock check — use the client-supplied date if present,
+        # otherwise fall back to "now".
+        raw_date = request.data.get('date')
+        check_date = datetime.fromisoformat(raw_date) if raw_date else datetime.now()
+        if _month_locked(check_date):
             return Response(
                 {
                     'error': 'Period is locked',
-                    'detail': 'The current month has been sealed and is read-only.',
+                    'detail': 'The target month has been sealed and is read-only.',
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )

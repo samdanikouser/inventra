@@ -116,7 +116,6 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
-        read_only_fields = ('date',)
 
     def get_staff_name(self, obj):
         if not obj.staff:

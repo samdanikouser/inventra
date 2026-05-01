@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class Category(models.Model):
@@ -92,7 +93,7 @@ class Transaction(models.Model):
     )
     quantity_delta = models.IntegerField()
     value = models.DecimalField(max_digits=12, decimal_places=3)
-    date = models.DateTimeField(auto_now_add=True, db_index=True)
+    date = models.DateTimeField(default=timezone.now, db_index=True)
     staff = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
     notes = models.TextField(blank=True)
     reason = models.CharField(max_length=255, blank=True)

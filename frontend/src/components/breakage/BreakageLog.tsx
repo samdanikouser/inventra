@@ -23,12 +23,15 @@ export const BreakageLog = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+
   const [formData, setFormData] = useState({
     item: '',
     outlet: '',
     quantity: 1,
     reason: BREAKAGE_REASONS[0],
     notes: '',
+    date: todayStr,
   });
 
   const { data: items = [] } = useQuery<Item[]>({
@@ -56,7 +59,7 @@ export const BreakageLog = () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsModalOpen(false);
-      setFormData({ item: '', outlet: '', quantity: 1, reason: BREAKAGE_REASONS[0], notes: '' });
+      setFormData({ item: '', outlet: '', quantity: 1, reason: BREAKAGE_REASONS[0], notes: '', date: todayStr });
       setError(null);
     },
     onError: (e: any) => {
@@ -93,6 +96,7 @@ export const BreakageLog = () => {
       value: formData.quantity * Number(selectedItem.unit_cost),
       reason: formData.reason,
       notes: formData.notes,
+      date: formData.date ? `${formData.date}T00:00:00Z` : undefined,
     });
   };
 
@@ -303,6 +307,18 @@ export const BreakageLog = () => {
                     </option>
                   ))}
                 </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF] mb-1">Date</label>
+                    <input
+                      type="date"
+                      className="w-full p-3 bg-gray-50 border border-[#E5E7EB] rounded-xl text-sm"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+                  <div />
+                </div>
                 <textarea
                   placeholder="Notes (optional)"
                   className="w-full p-3 bg-gray-50 border border-[#E5E7EB] rounded-xl text-sm h-20 resize-none"
