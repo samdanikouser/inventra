@@ -7,6 +7,8 @@ import {
   X,
   TrendingDown,
   Lock as LockIcon,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { endpoints, fetchAllPages } from '@/lib/api';
@@ -186,6 +188,7 @@ export const BreakageLog = () => {
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Reason</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Staff</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,6 +203,24 @@ export const BreakageLog = () => {
                     <td className="px-6 py-4 text-xs font-medium">{tx.staff_name}</td>
                     <td className="px-6 py-4 text-[10px] font-bold uppercase text-[#9CA3AF]">
                       {new Date(tx.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete ${tx.ref}? This will reverse the stock change.`)) {
+                              api.delete(`${endpoints.transactions}${tx.id}/`).then(() => {
+                                queryClient.invalidateQueries({ queryKey: ['items'] });
+                                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-[#6B7280] hover:text-rose-600 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

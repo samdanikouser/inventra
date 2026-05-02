@@ -44,7 +44,6 @@ const menuItems: MenuItem[] = [
   { id: 'categories', label: 'Categories', icon: Tags, href: '/categories' },
   { id: 'reports', label: 'Monthly Reports', icon: BarChart3, href: '/reports' },
   { id: 'reorder', label: 'Reorder List', icon: AlertCircle, href: '/reorder' },
-  { id: 'barcodes', label: 'Barcode Manager', icon: QrCode, href: '/barcodes' },
   { id: 'stock-take', label: 'Stock Take', icon: ClipboardList, href: '/stock-take' },
   { id: 'transfers', label: 'Stock Transfer', icon: ArrowRightLeft, href: '/transfers' },
   { id: 'monthly-closing', label: 'Monthly Closing', icon: LockIcon, href: '/monthly-closing' },
@@ -58,7 +57,7 @@ export const filterMenuByRole = (role: UserRole): MenuItem[] =>
       return !['write-offs', 'suppliers', 'reports', 'reorder', 'audit'].includes(item.id);
     }
     if (role === 'STAFF') {
-      return ['dashboard', 'inventory', 'breakage', 'barcodes', 'transfers', 'purchases'].includes(item.id);
+      return ['dashboard', 'inventory', 'breakage', 'transfers', 'purchases'].includes(item.id);
     }
     return false;
   });

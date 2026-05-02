@@ -96,6 +96,17 @@ class ItemSerializer(serializers.ModelSerializer):
         model = Item
         fields = '__all__'
 
+    def to_representation(self, instance):
+        """Return absolute URL for the photo so the frontend can display it."""
+        data = super().to_representation(instance)
+        if instance.photo:
+            request = self.context.get('request')
+            if request:
+                data['photo'] = request.build_absolute_uri(instance.photo.url)
+            else:
+                data['photo'] = instance.photo.url
+        return data
+
     def get_total_stock(self, obj):
         """Aggregate stock quantity across all outlets."""
         return sum(s.quantity for s in obj.stocks.all())

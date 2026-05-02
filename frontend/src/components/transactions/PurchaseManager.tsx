@@ -8,6 +8,8 @@ import {
   Truck,
   X,
   Lock as LockIcon,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { endpoints, fetchAllPages } from '@/lib/api';
@@ -21,6 +23,7 @@ const PAGE_SIZE = 30;
 export const PurchaseManager = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -32,9 +35,12 @@ export const PurchaseManager = () => {
     supplier: '',
     quantity_delta: 0,
     unitCost: 0,
+    discountPercent: 0,
     notes: '',
     date: todayStr,
   });
+
+  const netUnitCost = formData.unitCost * (1 - formData.discountPercent / 100);
 
   const { data: items = [] } = useQuery<Item[]>({
     queryKey: ['items'],
@@ -65,12 +71,38 @@ export const PurchaseManager = () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsModalOpen(false);
-      setFormData({ item: '', outlet: '', supplier: '', quantity_delta: 0, unitCost: 0, notes: '', date: todayStr });
+      setEditingTx(null);
+      setFormData({ item: '', outlet: '', supplier: '', quantity_delta: 0, unitCost: 0, discountPercent: 0, notes: '', date: todayStr });
       setError(null);
     },
     onError: (e: any) => {
       const data = e?.response?.data;
       setError(data?.detail || data?.error || 'Failed to record purchase. Please retry.');
+    },
+  });
+
+  const updateTransaction = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) =>
+      api.patch(`${endpoints.transactions}${id}/`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setIsModalOpen(false);
+      setEditingTx(null);
+      setFormData({ item: '', outlet: '', supplier: '', quantity_delta: 0, unitCost: 0, discountPercent: 0, notes: '', date: todayStr });
+      setError(null);
+    },
+    onError: (e: any) => {
+      const data = e?.response?.data;
+      setError(data?.detail || data?.error || 'Failed to update.');
+    },
+  });
+
+  const deleteTransaction = useMutation({
+    mutationFn: (id: number) => api.delete(`${endpoints.transactions}${id}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 
@@ -89,17 +121,46 @@ export const PurchaseManager = () => {
       return;
     }
     const ref = `PO-${Date.now().toString().slice(-8)}`;
-    createTransaction.mutate({
+    const payload = {
       ref,
-      type: 'PURCHASE',
+      type: 'PURCHASE' as const,
       item: Number(formData.item),
       outlet: Number(formData.outlet),
       supplier: formData.supplier ? Number(formData.supplier) : undefined,
       quantity_delta: formData.quantity_delta,
-      value: formData.quantity_delta * formData.unitCost,
+      value: formData.quantity_delta * netUnitCost,
       notes: formData.notes,
       date: formData.date ? `${formData.date}T00:00:00Z` : undefined,
+    };
+
+    if (editingTx) {
+      updateTransaction.mutate({ id: editingTx.id, data: { ...payload, ref: editingTx.ref } });
+    } else {
+      createTransaction.mutate(payload);
+    }
+  };
+
+  const openEdit = (tx: Transaction) => {
+    const unitCost = tx.quantity_delta ? Number(tx.value) / tx.quantity_delta : 0;
+    setFormData({
+      item: String(tx.item),
+      outlet: String(tx.outlet),
+      supplier: tx.supplier ? String(tx.supplier) : '',
+      quantity_delta: tx.quantity_delta,
+      unitCost,
+      discountPercent: 0,
+      notes: tx.notes || '',
+      date: tx.date.slice(0, 10),
     });
+    setEditingTx(tx);
+    setIsModalOpen(true);
+    setError(null);
+  };
+
+  const handleDelete = (tx: Transaction) => {
+    if (window.confirm(`Delete ${tx.ref}? This will reverse the stock adjustment.`)) {
+      deleteTransaction.mutate(tx.id);
+    }
   };
 
   const purchases = useMemo(
@@ -175,6 +236,7 @@ export const PurchaseManager = () => {
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Qty</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Value</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,6 +260,24 @@ export const PurchaseManager = () => {
                     <td className="px-6 py-4 text-right font-bold">{formatKD(tx.value)}</td>
                     <td className="px-6 py-4 text-[10px] uppercase font-bold text-[#9CA3AF]">
                       {new Date(tx.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => openEdit(tx)}
+                          className="p-1.5 text-[#6B7280] hover:text-blue-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(tx)}
+                          className="p-1.5 text-[#6B7280] hover:text-rose-600 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -240,7 +320,7 @@ export const PurchaseManager = () => {
             >
               <div className="flex items-start justify-between mb-6">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <PackagePlus className="text-emerald-600 w-5 h-5" /> New Receive Order
+                  <PackagePlus className="text-emerald-600 w-5 h-5" /> {editingTx ? 'Edit Receive Order' : 'New Receive Order'}
                 </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -313,7 +393,9 @@ export const PurchaseManager = () => {
                       }
                     />
                   </Field>
-                  <Field label="Unit Cost (KD)">
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <Field label="Unit Cost (KD) — Gross">
                     <input
                       type="number"
                       min={0}
@@ -325,10 +407,34 @@ export const PurchaseManager = () => {
                       }
                     />
                   </Field>
+                  <Field label="Discount %">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      className="w-full p-3 bg-gray-50 border border-[#E5E7EB] rounded-xl text-sm"
+                      value={formData.discountPercent}
+                      onChange={(e) =>
+                        setFormData({ ...formData, discountPercent: Number(e.target.value) || 0 })
+                      }
+                      placeholder="0.00"
+                    />
+                  </Field>
+                  <Field label="Net Unit Cost (KD)">
+                    <div className="w-full p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-bold text-emerald-700">
+                      {formatKD(netUnitCost)}
+                    </div>
+                  </Field>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-[11px] text-[#6B7280] flex items-end">
-                    Total: <span className="font-bold text-[#1A1A1A] ml-1">{formatKD(formData.quantity_delta * formData.unitCost)}</span>
+                    Net Total: <span className="font-bold text-[#1A1A1A] ml-1">{formatKD(formData.quantity_delta * netUnitCost)}</span>
+                    {formData.discountPercent > 0 && (
+                      <span className="ml-2 text-rose-500 line-through text-[10px]">
+                        {formatKD(formData.quantity_delta * formData.unitCost)}
+                      </span>
+                    )}
                   </div>
                   <Field label="Date">
                     <input
@@ -360,7 +466,7 @@ export const PurchaseManager = () => {
                   disabled={createTransaction.isPending}
                   className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-50"
                 >
-                  {createTransaction.isPending ? 'Submitting…' : 'Confirm Order'}
+                  {(createTransaction.isPending || updateTransaction.isPending) ? 'Submitting…' : editingTx ? 'Update Order' : 'Confirm Order'}
                 </button>
               </div>
             </motion.div>

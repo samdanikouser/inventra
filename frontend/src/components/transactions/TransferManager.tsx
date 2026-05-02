@@ -8,6 +8,7 @@ import {
   X,
   CheckCircle2,
   Lock as LockIcon,
+  Trash2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { endpoints, fetchAllPages } from '@/lib/api';
@@ -201,9 +202,25 @@ export const TransferManager = () => {
                       {new Date(tx.date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-emerald-600">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Completed</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-emerald-600">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Completed</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete ${tx.ref}? This will reverse the stock transfer.`)) {
+                              api.delete(`${endpoints.transactions}${tx.id}/`).then(() => {
+                                queryClient.invalidateQueries({ queryKey: ['items'] });
+                                queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                              });
+                            }
+                          }}
+                          className="p-1.5 text-[#6B7280] hover:text-rose-600 transition-colors"
+                          title="Delete transfer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>

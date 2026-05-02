@@ -30,6 +30,7 @@ import { endpoints, fetchAllPages, downloadCsv } from '@/lib/api';
 import { formatKD, cn } from '@/lib/utils';
 import { Item, Transaction, InventorySnapshot } from '@/types/inventory';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { DateRangeFilter, useDateRangeFilter } from '@/components/ui/DateRangeFilter';
 
 export const Dashboard = () => {
   const router = useRouter();
@@ -57,6 +58,18 @@ export const Dashboard = () => {
     [transactions],
   );
 
+  const { dateRange, setDateRange, filterByDate } = useDateRangeFilter('this_month');
+
+  const filteredTransactions = useMemo(
+    () => transactions.filter(filterByDate),
+    [transactions, filterByDate],
+  );
+
+  const filteredBreakages = useMemo(
+    () => breakageTransactions.filter(filterByDate),
+    [breakageTransactions, filterByDate],
+  );
+
   const totalAssetValue = useMemo(
     () =>
       items.reduce((acc, item) => {
@@ -72,13 +85,10 @@ export const Dashboard = () => {
   );
   const lowStockCount = lowStockItems.length;
 
-  const monthlyBreakageKD = useMemo(() => {
-    const now = new Date();
-    const month = now.toISOString().slice(0, 7);
-    return breakageTransactions
-      .filter((t) => t.date.startsWith(month))
+  const periodBreakageKD = useMemo(() => {
+    return filteredBreakages
       .reduce((acc, t) => acc + Math.abs(Number(t.value)), 0);
-  }, [breakageTransactions]);
+  }, [filteredBreakages]);
 
   const movementData = useMemo(() => {
     const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -87,7 +97,7 @@ export const Dashboard = () => {
       return d.toISOString().split('T')[0];
     });
     return last7.map((date) => {
-      const day = transactions.filter((t) => t.date.startsWith(date));
+      const day = filteredTransactions.filter((t) => t.date.startsWith(date));
       return {
         date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
         purchases: day
@@ -98,12 +108,12 @@ export const Dashboard = () => {
           .reduce((acc, t) => acc + Number(t.value), 0),
       };
     });
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   const topBroken = useMemo(() => {
     return items
       .map((item) => {
-        const value = breakageTransactions
+        const value = filteredBreakages
           .filter((t) => t.item === item.id)
           .reduce((acc, t) => acc + Math.abs(Number(t.value)), 0);
         return { ...item, totalValue: value };
@@ -111,7 +121,7 @@ export const Dashboard = () => {
       .filter((i) => i.totalValue > 0)
       .sort((a, b) => b.totalValue - a.totalValue)
       .slice(0, 8);
-  }, [items, breakageTransactions]);
+  }, [items, filteredBreakages]);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const isMonthLocked = snapshots.some((s) => s.month === currentMonth);
@@ -125,7 +135,7 @@ export const Dashboard = () => {
       value: `${lowStockCount} items`,
       color: 'text-[#EF4444]',
     },
-    { label: 'BREAKAGE (MTD)', value: formatKD(monthlyBreakageKD), color: 'text-orange-600' },
+    { label: 'BREAKAGE (Period)', value: formatKD(periodBreakageKD), color: 'text-orange-600' },
     ...(role === 'MANAGER'
       ? [{ label: 'ASSETS UNDER MGMT', value: `${items.length}`, color: 'text-emerald-600' }]
       : []),
@@ -167,6 +177,7 @@ export const Dashboard = () => {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
           {role === 'MANAGER' && (
             <button
               onClick={handleExport}
