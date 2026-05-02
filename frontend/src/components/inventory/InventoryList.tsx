@@ -35,6 +35,15 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { StockAdjustmentModal } from '@/components/inventory/StockAdjustmentModal';
 import { ItemDetailModal } from '@/components/inventory/ItemDetailModal';
 
+/** Resolve photo URL — handles both absolute and relative paths from the API. */
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, '');
+const getPhotoUrl = (photo: string | null | undefined): string | null => {
+  if (!photo) return null;
+  if (photo.startsWith('http')) return photo;
+  // Relative path like /media/items/photo.jpg — prepend API origin
+  return `${API_ORIGIN}${photo}`;
+};
+
 const BREAKAGE_REASONS = ['Accidental Drop', 'Expired', 'Damaged during transport', 'Defective', 'Worn out'];
 const WRITE_OFF_REASONS = ['Damaged', 'Expired', 'Theft', 'Obsolete', 'Sold'];
 
@@ -224,7 +233,7 @@ export const InventoryList = () => {
       min_stock: item.min_stock,
       par_level: item.par_level,
       unit_cost: Number(item.unit_cost),
-      photoUrl: item.photo || null,
+      photoUrl: getPhotoUrl(item.photo),
       photoFile: null,
       photoPreview: null,
       photoCleared: false,
@@ -489,11 +498,12 @@ export const InventoryList = () => {
                   className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm hover:shadow-md transition-all group flex flex-col overflow-hidden"
                 >
                   <div className="h-44 bg-[#F9FAFB] border-b border-[#E5E7EB] relative overflow-hidden flex items-center justify-center p-6">
-                    {item.photo ? (
+                    {getPhotoUrl(item.photo) ? (
                       <img
-                        src={item.photo}
-                        alt={item.name}
+                        src={getPhotoUrl(item.photo)!}
+                        alt=""
                         className="w-full h-full object-contain mix-blend-multiply transition-transform group-hover:scale-105 duration-500"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                     ) : (
                       <Package className="w-16 h-16 text-[#E5E7EB]" />
@@ -640,8 +650,8 @@ export const InventoryList = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-[#F9FAFB] border border-[#E5E7EB] rounded overflow-hidden flex items-center justify-center">
-                            {item.photo ? (
-                              <img src={item.photo} alt="" className="w-full h-full object-contain" />
+                            {getPhotoUrl(item.photo) ? (
+                              <img src={getPhotoUrl(item.photo)!} alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             ) : (
                               <Package className="w-4 h-4 text-[#E5E7EB]" />
                             )}
