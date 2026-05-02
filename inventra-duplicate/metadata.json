@@ -1,0 +1,7 @@
+{
+  "name": "Inventra",
+  "description": "Comprehensive inventory management for F&B outlets with breakage tracking, stock take, and advanced stock movement logging.",
+  "requestFramePermissions": [
+  ],
+  "majorCapabilities": []
+}
