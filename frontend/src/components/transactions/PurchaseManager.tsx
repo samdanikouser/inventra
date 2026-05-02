@@ -220,7 +220,7 @@ export const PurchaseManager = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Stat label="Filtered POs" value={String(filteredPurchases.length)} />
+          <Stat label="Receive Orders" value={String(filteredPurchases.length)} />
           <Stat label="Stock Inbound" value={`+${filteredPurchases.reduce((acc, t) => acc + t.quantity_delta, 0)} units`} color="text-emerald-600" />
           <Stat label="Total Spend" value={formatKD(filteredPurchases.reduce((acc, t) => acc + Number(t.value), 0))} />
         </div>
