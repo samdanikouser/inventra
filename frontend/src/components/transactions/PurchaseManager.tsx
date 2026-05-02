@@ -132,14 +132,12 @@ export const PurchaseManager = () => {
     const defaultRef = `INV-${Date.now().toString().slice(-6)}`;
     const finalRef = invoiceHeader.invoiceRef || defaultRef;
 
-    const payloads = invoiceItems.map((line, idx) => {
+    const payloads = invoiceItems.map((line) => {
       // Chain: Gross → apply item discount → apply invoice discount
       const afterItemDisc = line.grossPrice * (1 - line.itemDiscount / 100);
       const finalUnitPrice = afterItemDisc * invoiceDiscountRatio;
-      // Each line needs a unique ref (DB has unique constraint on ref)
-      const lineRef = invoiceItems.length > 1 ? `${finalRef}-${idx + 1}` : finalRef;
       return {
-        ref: lineRef,
+        ref: finalRef,
         type: 'PURCHASE',
         item: Number(line.itemId),
         outlet: Number(invoiceHeader.outlet),

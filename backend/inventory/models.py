@@ -83,7 +83,7 @@ class Transaction(models.Model):
         ('ADJUSTMENT', 'Adjustment'),
     )
 
-    ref = models.CharField(max_length=50, unique=True, db_index=True)
+    ref = models.CharField(max_length=50, db_index=True)  # Not unique — multi-item invoices share the same ref
     type = models.CharField(max_length=20, choices=TYPES, db_index=True)
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='transactions')
     outlet = models.ForeignKey(Outlet, on_delete=models.CASCADE, related_name='transactions')
