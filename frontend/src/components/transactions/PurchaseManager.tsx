@@ -38,20 +38,29 @@ export const PurchaseManager = () => {
     notes: '',
   });
 
-  const [invoiceItems, setInvoiceItems] = useState<{ itemId: string; qty: number; grossPrice: number }[]>([
-    { itemId: '', qty: 1, grossPrice: 0 },
+  const [invoiceItems, setInvoiceItems] = useState<{ itemId: string; qty: number; grossPrice: number; itemDiscount: number }[]>([
+    { itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 },
   ]);
 
   const [discount, setDiscount] = useState({ type: 'AMOUNT' as 'AMOUNT' | 'PERCENT', value: 0 });
 
+  // Step 1: Apply per-item discounts to get the "after item discount" subtotal
+  const afterItemDiscountTotal = useMemo(
+    () => invoiceItems.reduce((acc, item) => acc + item.qty * item.grossPrice * (1 - item.itemDiscount / 100), 0),
+    [invoiceItems],
+  );
+
+  // Gross total (before any discounts) for display
   const grossTotal = useMemo(() => invoiceItems.reduce((acc, item) => acc + item.qty * item.grossPrice, 0), [invoiceItems]);
 
+  // Step 2: Apply invoice-level discount on top of the after-item-discount total
   const netTotal = useMemo(() => {
-    if (discount.type === 'AMOUNT') return Math.max(0, grossTotal - discount.value);
-    return grossTotal * (1 - discount.value / 100);
-  }, [grossTotal, discount]);
+    if (discount.type === 'AMOUNT') return Math.max(0, afterItemDiscountTotal - discount.value);
+    return afterItemDiscountTotal * (1 - discount.value / 100);
+  }, [afterItemDiscountTotal, discount]);
 
-  const discountRatio = grossTotal > 0 ? netTotal / grossTotal : 1;
+  // Ratio for distributing invoice-level discount across line items
+  const invoiceDiscountRatio = afterItemDiscountTotal > 0 ? netTotal / afterItemDiscountTotal : 1;
 
   const { data: items = [] } = useQuery<Item[]>({
     queryKey: ['items'],
@@ -87,7 +96,7 @@ export const PurchaseManager = () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsModalOpen(false);
       setEditingTx(null);
-      setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0 }]);
+      setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 }]);
       setDiscount({ type: 'AMOUNT', value: 0 });
       setInvoiceHeader({ ...invoiceHeader, invoiceRef: '' });
       setError(null);
@@ -123,17 +132,22 @@ export const PurchaseManager = () => {
     const defaultRef = `INV-${Date.now().toString().slice(-6)}`;
     const finalRef = invoiceHeader.invoiceRef || defaultRef;
 
-    const payloads = invoiceItems.map((line) => ({
-      ref: finalRef, // Uses user's Invoice # or auto-generated
-      type: 'PURCHASE',
-      item: Number(line.itemId),
-      outlet: Number(invoiceHeader.outlet),
-      supplier: invoiceHeader.supplier ? Number(invoiceHeader.supplier) : undefined,
-      quantity_delta: line.qty,
-      value: line.qty * line.grossPrice * discountRatio,
-      notes: invoiceHeader.notes,
-      date: `${invoiceHeader.date}T00:00:00Z`,
-    }));
+    const payloads = invoiceItems.map((line) => {
+      // Chain: Gross → apply item discount → apply invoice discount
+      const afterItemDisc = line.grossPrice * (1 - line.itemDiscount / 100);
+      const finalUnitPrice = afterItemDisc * invoiceDiscountRatio;
+      return {
+        ref: finalRef,
+        type: 'PURCHASE',
+        item: Number(line.itemId),
+        outlet: Number(invoiceHeader.outlet),
+        supplier: invoiceHeader.supplier ? Number(invoiceHeader.supplier) : undefined,
+        quantity_delta: line.qty,
+        value: line.qty * finalUnitPrice,
+        notes: invoiceHeader.notes,
+        date: `${invoiceHeader.date}T00:00:00Z`,
+      };
+    });
 
     if (editingTx) {
       updateTransaction.mutate({ id: editingTx.id, data: payloads[0] });
@@ -142,7 +156,7 @@ export const PurchaseManager = () => {
     }
   };
 
-  const addItemLine = () => setInvoiceItems([...invoiceItems, { itemId: '', qty: 1, grossPrice: 0 }]);
+  const addItemLine = () => setInvoiceItems([...invoiceItems, { itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 }]);
   const removeItemLine = (idx: number) => setInvoiceItems(invoiceItems.filter((_, i) => i !== idx));
 
   const openEdit = (tx: Transaction) => {
@@ -153,7 +167,7 @@ export const PurchaseManager = () => {
       date: tx.date.slice(0, 10),
       notes: tx.notes || '',
     });
-    setInvoiceItems([{ itemId: String(tx.item), qty: tx.quantity_delta, grossPrice: tx.quantity_delta ? Number(tx.value) / tx.quantity_delta : 0 }]);
+    setInvoiceItems([{ itemId: String(tx.item), qty: tx.quantity_delta, grossPrice: tx.quantity_delta ? Number(tx.value) / tx.quantity_delta : 0, itemDiscount: 0 }]);
     setDiscount({ type: 'PERCENT', value: 0 });
     setEditingTx(tx);
     setIsModalOpen(true);
@@ -186,7 +200,7 @@ export const PurchaseManager = () => {
         <button
           onClick={() => {
             setEditingTx(null);
-            setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0 }]);
+            setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 }]);
             setIsModalOpen(true);
           }}
           disabled={isMonthLocked}
@@ -316,16 +330,25 @@ export const PurchaseManager = () => {
                             setInvoiceItems(newLines);
                           }} />
                         </div>
-                        <div className="w-32">
-                          <label className="block text-[8px] font-black uppercase text-[#9CA3AF] mb-1">Unit Price (Gross)</label>
+                        <div className="w-28">
+                          <label className="block text-[8px] font-black uppercase text-[#9CA3AF] mb-1">Unit Price</label>
                           <input type="number" step="0.001" className="w-full p-2 bg-white border border-[#E5E7EB] rounded-lg text-xs font-bold text-right" value={line.grossPrice} onChange={(e) => {
                             const newLines = [...invoiceItems];
                             newLines[idx].grossPrice = Number(e.target.value) || 0;
                             setInvoiceItems(newLines);
                           }} />
                         </div>
+                        <div className="w-16">
+                          <label className="block text-[8px] font-black uppercase text-[#9CA3AF] mb-1">Disc %</label>
+                          <input type="number" min={0} max={100} step="0.01" className="w-full p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-center text-amber-800" value={line.itemDiscount} onChange={(e) => {
+                            const newLines = [...invoiceItems];
+                            newLines[idx].itemDiscount = Number(e.target.value) || 0;
+                            setInvoiceItems(newLines);
+                          }} placeholder="0" />
+                        </div>
                         <div className="w-24 text-right pb-3 pr-2">
-                          <span className="text-[10px] font-bold text-[#1A1A1A]">{formatKD(line.qty * line.grossPrice)}</span>
+                          <span className="text-[10px] font-bold text-[#1A1A1A]">{formatKD(line.qty * line.grossPrice * (1 - line.itemDiscount / 100))}</span>
+                          {line.itemDiscount > 0 && <span className="block text-[8px] text-rose-400 line-through">{formatKD(line.qty * line.grossPrice)}</span>}
                         </div>
                         {!editingTx && invoiceItems.length > 1 && (
                           <button onClick={() => removeItemLine(idx)} className="pb-3 text-rose-400 hover:text-rose-600 transition-colors"><X className="w-4 h-4" /></button>
@@ -350,13 +373,14 @@ export const PurchaseManager = () => {
                       </div>
                     </div>
                     <div className="pb-2">
-                      <span className="text-[10px] font-bold text-[#9CA3AF] uppercase">Net Adjustment: {((1 - discountRatio) * 100).toFixed(2)}% off each item</span>
+                      <span className="text-[10px] font-bold text-[#9CA3AF] uppercase">Invoice-level adjustment: {((1 - invoiceDiscountRatio) * 100).toFixed(2)}% off each item</span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <div className="flex items-center gap-4 text-xs font-bold text-[#9CA3AF]">
                       <span>Gross: {formatKD(grossTotal)}</span>
-                      <span>Discount: -{discount.type === 'AMOUNT' ? formatKD(discount.value) : formatKD(grossTotal * (discount.value / 100))}</span>
+                      {afterItemDiscountTotal < grossTotal && <span>After Item Disc: {formatKD(afterItemDiscountTotal)}</span>}
+                      {discount.value > 0 && <span>Invoice Disc: -{discount.type === 'AMOUNT' ? formatKD(discount.value) : formatKD(afterItemDiscountTotal * (discount.value / 100))}</span>}
                     </div>
                     <div className="text-3xl font-black tracking-tighter text-[#1A1A1A]">
                       {formatKD(netTotal)}
