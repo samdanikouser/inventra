@@ -20,6 +20,6 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files — required on Render where DEBUG=False
+# In production at scale, use a dedicated storage backend (S3, GCS).
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
