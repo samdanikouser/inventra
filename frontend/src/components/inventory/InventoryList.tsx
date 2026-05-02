@@ -524,18 +524,6 @@ export const InventoryList = () => {
                         >
                           {item.name}
                         </h3>
-                        <div
-                          className={cn(
-                            'flex-shrink-0 px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wide',
-                            stockLevel <= 0
-                              ? 'bg-red-50 text-red-600 border border-red-100'
-                              : isLow
-                              ? 'bg-orange-50 text-orange-600 border border-orange-100'
-                              : 'bg-emerald-50 text-emerald-600 border border-emerald-100',
-                          )}
-                        >
-                          {stockLevel <= 0 ? 'OOS' : isLow ? 'LOW' : 'OK'}
-                        </div>
                       </div>
                       <p className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">
                         {item.category_name}
@@ -561,55 +549,62 @@ export const InventoryList = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-4 border-t border-[#F3F4F6]">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-bold text-[#9CA3AF] uppercase">WAC Value</span>
-                          <span className="text-sm font-light tracking-tight text-[#1A1A1A]">
-                            {formatKD(item.unit_cost)}
-                          </span>
+                      <div className="pt-3 border-t border-[#F3F4F6] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-[#9CA3AF] uppercase block">WAC Value</span>
+                            <span className="text-sm font-light tracking-tight text-[#1A1A1A]">
+                              {formatKD(item.unit_cost)}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              'flex-shrink-0 px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wide',
+                              stockLevel <= 0
+                                ? 'bg-red-50 text-red-600 border border-red-100'
+                                : isLow
+                                ? 'bg-orange-50 text-orange-600 border border-orange-100'
+                                : 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+                            )}
+                          >
+                            {stockLevel <= 0 ? 'OOS' : isLow ? 'LOW' : 'OK'}
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex items-center justify-between gap-1.5">
                           {role !== 'STAFF' && (
                             <button
                               onClick={() => setAdjItem(item)}
-                              className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-violet-50 hover:border-violet-200 text-[#6B7280] hover:text-violet-600 transition-all shadow-sm"
+                              className="flex-1 p-2 border border-[#E5E7EB] rounded-lg hover:bg-violet-50 hover:border-violet-200 text-[#6B7280] hover:text-violet-600 transition-all text-center"
                               title="Opening balance"
                             >
-                              <Scale className="w-3.5 h-3.5" />
+                              <Scale className="w-3.5 h-3.5 mx-auto" />
                             </button>
                           )}
                           {role !== 'STAFF' && (
                             <button
                               onClick={() => openTxModal(item, 'TRANSFER')}
-                              className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 hover:border-blue-200 text-[#6B7280] hover:text-blue-600 transition-all shadow-sm"
+                              className="flex-1 p-2 border border-[#E5E7EB] rounded-lg hover:bg-blue-50 hover:border-blue-200 text-[#6B7280] hover:text-blue-600 transition-all text-center"
                               title="Transfer"
                             >
-                              <ArrowRightLeft className="w-3.5 h-3.5" />
+                              <ArrowRightLeft className="w-3.5 h-3.5 mx-auto" />
                             </button>
                           )}
                           <button
                             onClick={() => openTxModal(item, 'BREAKAGE')}
-                            className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-600 transition-all shadow-sm"
+                            className="flex-1 p-2 border border-[#E5E7EB] rounded-lg hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-600 transition-all text-center"
                             title="Log breakage"
                           >
-                            <Hammer className="w-3.5 h-3.5" />
+                            <Hammer className="w-3.5 h-3.5 mx-auto" />
                           </button>
                           {isManager && (
                             <button
                               onClick={() => openTxModal(item, 'WRITE_OFF')}
-                              className="p-2 border border-[#E5E7EB] rounded-lg hover:bg-rose-50 hover:border-rose-200 text-[#6B7280] hover:text-rose-600 transition-all shadow-sm"
+                              className="flex-1 p-2 border border-[#E5E7EB] rounded-lg hover:bg-rose-50 hover:border-rose-200 text-[#6B7280] hover:text-rose-600 transition-all text-center"
                               title="Write-off"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
                             </button>
                           )}
-                          <button
-                            onClick={() => openTxModal(item, 'PURCHASE')}
-                            className="p-2 bg-black text-white rounded-lg hover:opacity-80 transition-all shadow-sm"
-                            title="Record purchase"
-                          >
-                            <PackagePlus className="w-3.5 h-3.5" />
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -627,9 +622,9 @@ export const InventoryList = () => {
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Item</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Category</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Total</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Min / Par</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Min/Par</th>
                   <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">WAC</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
+                  <th className="px-5 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -673,8 +668,8 @@ export const InventoryList = () => {
                         {item.min_stock} / {item.par_level}
                       </td>
                       <td className="px-6 py-4 text-right">{formatKD(item.unit_cost)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-1">
+                      <td className="px-5 py-4">
+                        <div className="flex justify-center gap-0.5">
                           {(role === 'MANAGER' || role === 'SUPERVISOR') && (
                             <button
                               onClick={() => openEditItem(item)}
