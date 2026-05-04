@@ -88,8 +88,16 @@ export const PurchaseManager = () => {
 
   const createTransactions = useMutation({
     mutationFn: async (payloads: any[]) => {
-      for (const p of payloads) {
-        await api.post(endpoints.transactions, p);
+      // Send all items in parallel so one failure doesn't block the rest
+      const results = await Promise.allSettled(
+        payloads.map((p) => api.post(endpoints.transactions, p))
+      );
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        const succeeded = results.length - failed.length;
+        throw new Error(
+          `${failed.length} of ${results.length} items failed to save.${succeeded > 0 ? ` ${succeeded} items were saved successfully.` : ''} Please check and retry the failed ones.`
+        );
       }
     },
     onSuccess: () => {
@@ -102,7 +110,7 @@ export const PurchaseManager = () => {
       setInvoiceHeader({ ...invoiceHeader, invoiceRef: '' });
       setError(null);
     },
-    onError: (e: any) => setError('Failed to record purchase.'),
+    onError: (e: any) => setError(e?.message || 'Failed to record purchase.'),
   });
 
   const updateTransaction = useMutation({
