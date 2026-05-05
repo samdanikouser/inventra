@@ -186,6 +186,27 @@ export const PurchaseManager = () => {
     if (confirm(`Delete ${tx.ref}?`)) deleteTransaction.mutate(tx.id);
   };
 
+  const [selectedRef, setSelectedRef] = useState<string | null>(null);
+
+  const deleteTransactionsGroup = useMutation({
+    mutationFn: async (ids: number[]) => {
+      for (const id of ids) {
+        await api.delete(`${endpoints.transactions}${id}/`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setSelectedRef(null);
+    },
+  });
+
+  const handleDeleteGroup = (group: { ref: string; transactions: Transaction[] }) => {
+    if (confirm(`Delete entire receipt ${group.ref} with ${group.transactions.length} items?`)) {
+      deleteTransactionsGroup.mutate(group.transactions.map((t) => t.id));
+    }
+  };
+
   const purchases = useMemo(() => transactions.filter((t) => t.type === 'PURCHASE'), [transactions]);
   const { dateRange, setDateRange, filterByDate } = useDateRangeFilter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -199,7 +220,32 @@ export const PurchaseManager = () => {
       (t.supplier_name || '').toLowerCase().includes(q)
     );
   }, [purchases, filterByDate, searchQuery]);
-  const visiblePurchases = filteredPurchases.slice(0, page * PAGE_SIZE);
+
+  const groupedPurchases = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const t of filteredPurchases) {
+      const key = t.ref || `Unknown-${t.id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          ref: key,
+          supplier_name: t.supplier_name,
+          outlet_name: t.outlet_name,
+          date: t.date,
+          total_value: 0,
+          total_qty: 0,
+          transactions: [],
+        });
+      }
+      const group = map.get(key)!;
+      group.total_value += Number(t.value);
+      group.total_qty += t.quantity_delta;
+      group.transactions.push(t);
+    }
+    return Array.from(map.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredPurchases]);
+
+  const visibleGroups = groupedPurchases.slice(0, page * PAGE_SIZE);
+  const selectedGroup = useMemo(() => groupedPurchases.find((g) => g.ref === selectedRef), [groupedPurchases, selectedRef]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -235,63 +281,121 @@ export const PurchaseManager = () => {
       <div className="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <DateRangeFilter value={dateRange} onChange={setDateRange} />
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3AF]" />
-              <input
-                type="text"
-                placeholder="Search ref, item, vendor…"
-                className="pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs font-medium focus:outline-none focus:ring-1 focus:ring-black placeholder:text-[#9CA3AF] w-56"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            {!selectedRef ? (
+              <>
+                <DateRangeFilter value={dateRange} onChange={setDateRange} />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#9CA3AF]" />
+                  <input
+                    type="text"
+                    placeholder="Search ref, item, vendor…"
+                    className="pl-9 pr-4 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs font-medium focus:outline-none focus:ring-1 focus:ring-black placeholder:text-[#9CA3AF] w-56"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={() => setSelectedRef(null)}
+                className="px-4 py-2 bg-white border border-[#E5E7EB] rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm"
+              >
+                ← Back to All Receipts
+              </button>
+            )}
           </div>
-          <span className="text-xs text-[#9CA3AF] font-medium">{filteredPurchases.length} records</span>
+          <span className="text-xs text-[#9CA3AF] font-medium">
+            {!selectedRef ? `${groupedPurchases.length} receipts` : `${selectedGroup?.transactions.length || 0} items`}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Stat label="Stock Inbound" value={`+${filteredPurchases.reduce((acc, t) => acc + t.quantity_delta, 0)} units`} color="text-emerald-600" />
-          <Stat label="Total Spend" value={formatKD(filteredPurchases.reduce((acc, t) => acc + Number(t.value), 0))} />
-        </div>
+        {!selectedRef && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Stat label="Stock Inbound" value={`+${filteredPurchases.reduce((acc, t) => acc + t.quantity_delta, 0)} units`} color="text-emerald-600" />
+            <Stat label="Total Spend" value={formatKD(filteredPurchases.reduce((acc, t) => acc + Number(t.value), 0))} />
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-          <table className="w-full text-left font-sans text-sm border-collapse">
-            <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-              <tr>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Ref</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Item</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Vendor & Target</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Qty</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Value</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePurchases.map((tx) => (
-                <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs font-bold">{tx.ref}</td>
-                  <td className="px-6 py-4 font-bold">{tx.item_name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-tighter">
-                      <span className="text-[#1A1A1A]">{tx.supplier_name || '—'}</span>
-                      <span className="text-[#9CA3AF]">{tx.outlet_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium text-emerald-600">+{tx.quantity_delta}</td>
-                  <td className="px-6 py-4 text-right font-bold">{formatKD(tx.value)}</td>
-                  <td className="px-6 py-4 text-[10px] uppercase font-bold text-[#9CA3AF]">{new Date(tx.date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => openEdit(tx)} className="text-gray-400 hover:text-black transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDelete(tx)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </td>
+          {!selectedRef ? (
+            <table className="w-full text-left font-sans text-sm border-collapse">
+              <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Ref</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Vendor & Target</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Total Qty</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Total Value</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleGroups.map((group) => (
+                  <tr key={group.ref} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs font-bold">
+                      <button onClick={() => setSelectedRef(group.ref)} className="text-emerald-600 hover:underline">
+                        {group.ref}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-tighter">
+                        <span className="text-[#1A1A1A]">{group.supplier_name || '—'}</span>
+                        <span className="text-[#9CA3AF]">{group.outlet_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium text-emerald-600">+{group.total_qty}</td>
+                    <td className="px-6 py-4 text-right font-bold">{formatKD(group.total_value)}</td>
+                    <td className="px-6 py-4 text-[10px] uppercase font-bold text-[#9CA3AF]">{new Date(group.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => handleDeleteGroup(group)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {visibleGroups.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-[#6B7280] text-xs font-medium">
+                      No purchases found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left font-sans text-sm border-collapse">
+              <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                <tr>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Item</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Qty</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Value</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedGroup?.transactions.map((tx: Transaction) => (
+                  <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
+                    <td className="px-6 py-4 font-bold">{tx.item_name}</td>
+                    <td className="px-6 py-4 text-right font-medium text-emerald-600">+{tx.quantity_delta}</td>
+                    <td className="px-6 py-4 text-right font-bold">{formatKD(tx.value)}</td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => openEdit(tx)} className="text-gray-400 hover:text-black transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDelete(tx)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {!selectedGroup?.transactions.length && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-[#6B7280] text-xs font-medium">
+                      No items found for this receipt
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
