@@ -86,7 +86,14 @@ class TransactionPermission(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         role = get_user_role(request.user)
-        tx_type = request.data.get('type') if hasattr(request, 'data') else None
-        if tx_type in ('WRITE_OFF', 'ADJUSTMENT'):
+        
+        tx_types = set()
+        if hasattr(request, 'data'):
+            if isinstance(request.data, list):
+                tx_types = {item.get('type') for item in request.data if isinstance(item, dict)}
+            elif isinstance(request.data, dict):
+                tx_types = {request.data.get('type')}
+                
+        if any(tx_type in ('WRITE_OFF', 'ADJUSTMENT') for tx_type in tx_types):
             return role == ROLE_MANAGER
         return role in VALID_ROLES
