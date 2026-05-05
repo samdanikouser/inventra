@@ -312,6 +312,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
             headers = self.get_success_headers(created_data[0])
             return Response(created_data[0], status=status.HTTP_201_CREATED, headers=headers)
 
+    @db_transaction.atomic
     def destroy(self, request, *args, **kwargs):
         """Transactions are immutable audit records — block deletes for non-managers."""
         if get_user_role(request.user) != ROLE_MANAGER:
@@ -319,7 +320,56 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 {'detail': 'Only managers may reverse transactions.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
+            
+        instance = self.get_object()
+        
+        if _month_locked(instance.date):
+            return Response(
+                {'error': 'Period is locked', 'detail': 'Cannot delete transactions in a locked month.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+        # Revert stock
+        stock, _ = Stock.objects.select_for_update().get_or_create(item=instance.item, outlet=instance.outlet, defaults={'quantity': 0})
+        stock.quantity -= instance.quantity_delta
+        stock.save()
+        
+        if instance.type == 'TRANSFER' and instance.target_outlet:
+            t_stock, _ = Stock.objects.select_for_update().get_or_create(item=instance.item, outlet=instance.target_outlet, defaults={'quantity': 0})
+            t_stock.quantity += instance.quantity_delta
+            t_stock.save()
+            
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['put'], url_path=r'bulk_update/(?P<ref>[^/.]+)')
+    @db_transaction.atomic
+    def bulk_update_ref(self, request, ref=None):
+        if get_user_role(request.user) != ROLE_MANAGER:
+            return Response({'detail': 'Only managers can edit bulk transactions.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        old_transactions = Transaction.objects.filter(ref=ref)
+        if not old_transactions.exists():
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        # 1. Revert old stock
+        for tx in old_transactions:
+            if _month_locked(tx.date):
+                return Response({'error': 'Period is locked', 'detail': 'Cannot modify locked transactions.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            stock, _ = Stock.objects.select_for_update().get_or_create(item=tx.item, outlet=tx.outlet, defaults={'quantity': 0})
+            stock.quantity -= tx.quantity_delta
+            stock.save()
+            
+            if tx.type == 'TRANSFER' and tx.target_outlet:
+                t_stock, _ = Stock.objects.select_for_update().get_or_create(item=tx.item, outlet=tx.target_outlet, defaults={'quantity': 0})
+                t_stock.quantity += tx.quantity_delta
+                t_stock.save()
+                
+        # 2. Delete old records
+        old_transactions.delete()
+        
+        # 3. Create new records by reusing our bulk create logic
+        return self.create(request)
 
 
 # ---------------------------------------------------------------------------

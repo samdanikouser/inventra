@@ -25,6 +25,7 @@ export const PurchaseManager = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editingGroupRef, setEditingGroupRef] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -96,12 +97,30 @@ export const PurchaseManager = () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setIsModalOpen(false);
       setEditingTx(null);
+      setEditingGroupRef(null);
       setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 }]);
       setDiscount({ type: 'AMOUNT', value: 0 });
-      setInvoiceHeader({ ...invoiceHeader, invoiceRef: '' });
+      setInvoiceHeader({ supplier: '', outlet: '', invoiceRef: '', date: todayStr, notes: '' });
       setError(null);
     },
     onError: (e: any) => setError(e?.message || 'Failed to record purchase.'),
+  });
+
+  const updateGroup = useMutation({
+    mutationFn: async ({ ref, payloads }: { ref: string; payloads: any[] }) =>
+      api.put(`${endpoints.transactions}bulk_update/${ref}/`, payloads),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setIsModalOpen(false);
+      setEditingTx(null);
+      setEditingGroupRef(null);
+      setInvoiceItems([{ itemId: '', qty: 1, grossPrice: 0, itemDiscount: 0 }]);
+      setDiscount({ type: 'AMOUNT', value: 0 });
+      setInvoiceHeader({ supplier: '', outlet: '', invoiceRef: '', date: todayStr, notes: '' });
+      setError(null);
+    },
+    onError: (e: any) => setError(e?.message || 'Failed to update receipt.'),
   });
 
   const updateTransaction = useMutation({
@@ -149,7 +168,9 @@ export const PurchaseManager = () => {
       };
     });
 
-    if (editingTx) {
+    if (editingGroupRef) {
+      updateGroup.mutate({ ref: editingGroupRef, payloads });
+    } else if (editingTx) {
       updateTransaction.mutate({ id: editingTx.id, data: payloads[0] });
     } else {
       createTransactions.mutate(payloads);
@@ -170,6 +191,27 @@ export const PurchaseManager = () => {
     setInvoiceItems([{ itemId: String(tx.item), qty: tx.quantity_delta, grossPrice: tx.quantity_delta ? Number(tx.value) / tx.quantity_delta : 0, itemDiscount: 0 }]);
     setDiscount({ type: 'PERCENT', value: 0 });
     setEditingTx(tx);
+    setEditingGroupRef(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditGroup = (group: any) => {
+    setInvoiceHeader({
+      supplier: group.transactions[0]?.supplier ? String(group.transactions[0]?.supplier) : '',
+      outlet: String(group.transactions[0]?.outlet || ''),
+      invoiceRef: group.ref,
+      date: group.date.split('T')[0],
+      notes: group.transactions[0]?.notes || '',
+    });
+    setInvoiceItems(group.transactions.map((tx: Transaction) => ({
+      itemId: String(tx.item),
+      qty: tx.quantity_delta,
+      grossPrice: tx.quantity_delta ? Number(tx.value) / tx.quantity_delta : 0,
+      itemDiscount: 0,
+    })));
+    setDiscount({ type: 'PERCENT', value: 0 });
+    setEditingGroupRef(group.ref);
+    setEditingTx(null);
     setIsModalOpen(true);
   };
 
@@ -339,7 +381,8 @@ export const PurchaseManager = () => {
                     <td className="px-6 py-4 text-[10px] uppercase font-bold text-[#9CA3AF]">{new Date(group.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleDeleteGroup(group)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleEditGroup(group); }} className="text-gray-400 hover:text-black transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteGroup(group); }} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -400,8 +443,8 @@ export const PurchaseManager = () => {
               className="relative w-full max-w-4xl bg-white rounded-3xl p-8 shadow-2xl flex flex-col max-h-[90vh]"
             >
               <div className="flex items-start justify-between mb-6 flex-shrink-0">
-                <h2 className="text-xl font-bold">{editingTx ? 'Edit Entry' : 'New Multi-Item Receipt'}</h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-[#6B7280]" /></button>
+                <h2 className="text-xl font-bold">{editingTx ? 'Edit Entry' : editingGroupRef ? 'Edit Receipt' : 'New Multi-Item Receipt'}</h2>
+                <button onClick={() => { setIsModalOpen(false); setEditingGroupRef(null); setEditingTx(null); }} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-[#6B7280]" /></button>
               </div>
 
               {error && <div className="bg-rose-50 border border-rose-100 rounded-xl px-4 py-3 mb-4 text-xs font-medium text-rose-700 shrink-0">{error}</div>}
