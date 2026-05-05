@@ -88,15 +88,22 @@ export const PurchaseManager = () => {
 
   const createTransactions = useMutation({
     mutationFn: async (payloads: any[]) => {
-      // Send all items in parallel so one failure doesn't block the rest
-      const results = await Promise.allSettled(
-        payloads.map((p) => api.post(endpoints.transactions, p))
-      );
-      const failed = results.filter((r) => r.status === 'rejected');
-      if (failed.length > 0) {
-        const succeeded = results.length - failed.length;
+      // Send items sequentially to avoid SQLite DB locks and browser connection limits,
+      // but catch errors individually so one failure doesn't block the rest.
+      let succeeded = 0;
+      let failed = 0;
+      for (const p of payloads) {
+        try {
+          await api.post(endpoints.transactions, p);
+          succeeded++;
+        } catch (error) {
+          console.error("Failed to save item:", p, error);
+          failed++;
+        }
+      }
+      if (failed > 0) {
         throw new Error(
-          `${failed.length} of ${results.length} items failed to save.${succeeded > 0 ? ` ${succeeded} items were saved successfully.` : ''} Please check and retry the failed ones.`
+          `${failed} of ${payloads.length} items failed to save.${succeeded > 0 ? ` ${succeeded} items were saved successfully.` : ''} Please check and retry the failed ones.`
         );
       }
     },
