@@ -186,122 +186,131 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     @db_transaction.atomic
     def create(self, request, *args, **kwargs):
-        # Period lock check — use the client-supplied date if present,
-        # otherwise fall back to "now".
-        raw_date = request.data.get('date')
-        check_date = datetime.fromisoformat(raw_date) if raw_date else datetime.now()
-        if _month_locked(check_date):
-            return Response(
-                {
-                    'error': 'Period is locked',
-                    'detail': 'The target month has been sealed and is read-only.',
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Force staff = the authenticated user. Clients should not be trusted
-        # to set this field.
-        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        data['staff'] = request.user.id
-
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-
-        tx_type = serializer.validated_data['type']
-        item = serializer.validated_data['item']
-        outlet = serializer.validated_data['outlet']
-        delta = serializer.validated_data['quantity_delta']
-        target_outlet = serializer.validated_data.get('target_outlet')
-
-        # ---- Validation ----
-        if tx_type == 'PURCHASE' and delta <= 0:
-            return Response(
-                {'error': 'Invalid quantity', 'detail': 'Purchase quantity must be positive.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if tx_type in ('BREAKAGE', 'WRITE_OFF') and delta >= 0:
-            return Response(
-                {'error': 'Invalid quantity', 'detail': f'{tx_type} quantity must be negative.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if tx_type == 'TRANSFER':
-            if not target_outlet:
+        is_many = isinstance(request.data, list)
+        items_data = request.data if is_many else [request.data]
+        
+        created_data = []
+        for raw_data in items_data:
+            # Period lock check — use the client-supplied date if present,
+            # otherwise fall back to "now".
+            raw_date = raw_data.get('date')
+            check_date = datetime.fromisoformat(raw_date) if raw_date else datetime.now()
+            if _month_locked(check_date):
                 return Response(
-                    {'error': 'Missing target_outlet', 'detail': 'Transfers require a target outlet.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if target_outlet.id == outlet.id:
-                return Response(
-                    {'error': 'Invalid transfer', 'detail': 'Source and target outlets must differ.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if delta >= 0:
-                return Response(
-                    {'error': 'Invalid quantity', 'detail': 'Transfer source delta must be negative.'},
+                    {
+                        'error': 'Period is locked',
+                        'detail': 'The target month has been sealed and is read-only.',
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # ---- Source outlet stock update ----
-        stock, _ = Stock.objects.select_for_update().get_or_create(
-            item=item, outlet=outlet, defaults={'quantity': 0}
-        )
-        new_qty = stock.quantity + delta
-        if new_qty < 0:
-            logger.warning(
-                'Insufficient stock: item=%s outlet=%s current=%d requested_delta=%d',
-                item.sku, outlet.name, stock.quantity, delta,
-            )
-            return Response(
-                {
-                    'error': 'Insufficient stock',
-                    'detail': f'Available {stock.quantity}, requested delta {delta}.',
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            # Force staff = the authenticated user. Clients should not be trusted
+            # to set this field.
+            data = raw_data.copy() if hasattr(raw_data, 'copy') else dict(raw_data)
+            data['staff'] = request.user.id
 
-        # ---- WAC recalculation for purchases ----
-        if tx_type == 'PURCHASE':
-            current_total = sum(
-                s.quantity for s in Stock.objects
-                .select_for_update()
-                .filter(item=item)
-            )
-            unit_cost = Decimal(str(serializer.validated_data['value'])) / Decimal(delta) \
-                if delta else item.unit_cost
-            denom = current_total + delta
-            if denom > 0:
-                new_wac = (
-                    (Decimal(current_total) * item.unit_cost)
-                    + (Decimal(delta) * unit_cost)
-                ) / Decimal(denom)
-                item.unit_cost = new_wac.quantize(Decimal('0.001'))
-                item.save(update_fields=['unit_cost'])
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
 
-        stock.quantity = new_qty
-        stock.save()
+            tx_type = serializer.validated_data['type']
+            item = serializer.validated_data['item']
+            outlet = serializer.validated_data['outlet']
+            delta = serializer.validated_data['quantity_delta']
+            target_outlet = serializer.validated_data.get('target_outlet')
 
-        # ---- Transfer: update target outlet ----
-        if tx_type == 'TRANSFER' and target_outlet:
-            target_stock, _ = Stock.objects.select_for_update().get_or_create(
-                item=item, outlet=target_outlet, defaults={'quantity': 0},
+            # ---- Validation ----
+            if tx_type == 'PURCHASE' and delta <= 0:
+                return Response(
+                    {'error': 'Invalid quantity', 'detail': 'Purchase quantity must be positive.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if tx_type in ('BREAKAGE', 'WRITE_OFF') and delta >= 0:
+                return Response(
+                    {'error': 'Invalid quantity', 'detail': f'{tx_type} quantity must be negative.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if tx_type == 'TRANSFER':
+                if not target_outlet:
+                    return Response(
+                        {'error': 'Missing target_outlet', 'detail': 'Transfers require a target outlet.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if target_outlet.id == outlet.id:
+                    return Response(
+                        {'error': 'Invalid transfer', 'detail': 'Source and target outlets must differ.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if delta >= 0:
+                    return Response(
+                        {'error': 'Invalid quantity', 'detail': 'Transfer source delta must be negative.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            # ---- Source outlet stock update ----
+            stock, _ = Stock.objects.select_for_update().get_or_create(
+                item=item, outlet=outlet, defaults={'quantity': 0}
             )
-            target_stock.quantity -= delta  # delta is negative for source
-            target_stock.save()
+            new_qty = stock.quantity + delta
+            if new_qty < 0:
+                logger.warning(
+                    'Insufficient stock: item=%s outlet=%s current=%d requested_delta=%d',
+                    item.sku, outlet.name, stock.quantity, delta,
+                )
+                return Response(
+                    {
+                        'error': 'Insufficient stock',
+                        'detail': f'Available {stock.quantity}, requested delta {delta}.',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # ---- WAC recalculation for purchases ----
+            if tx_type == 'PURCHASE':
+                current_total = sum(
+                    s.quantity for s in Stock.objects
+                    .select_for_update()
+                    .filter(item=item)
+                )
+                unit_cost = Decimal(str(serializer.validated_data['value'])) / Decimal(delta) \
+                    if delta else item.unit_cost
+                denom = current_total + delta
+                if denom > 0:
+                    new_wac = (
+                        (Decimal(current_total) * item.unit_cost)
+                        + (Decimal(delta) * unit_cost)
+                    ) / Decimal(denom)
+                    item.unit_cost = new_wac.quantize(Decimal('0.001'))
+                    item.save(update_fields=['unit_cost'])
+
+            stock.quantity = new_qty
+            stock.save()
+
+            # ---- Transfer: update target outlet ----
+            if tx_type == 'TRANSFER' and target_outlet:
+                target_stock, _ = Stock.objects.select_for_update().get_or_create(
+                    item=item, outlet=target_outlet, defaults={'quantity': 0},
+                )
+                target_stock.quantity -= delta  # delta is negative for source
+                target_stock.save()
+                logger.info(
+                    'Transfer %s: %s -> %s (%+d units)',
+                    serializer.validated_data.get('ref', ''),
+                    outlet.name, target_outlet.name, abs(delta),
+                )
+
+            self.perform_create(serializer)
+            created_data.append(serializer.data)
+
             logger.info(
-                'Transfer %s: %s -> %s (%+d units)',
-                serializer.validated_data.get('ref', ''),
-                outlet.name, target_outlet.name, abs(delta),
+                'Transaction created: ref=%s type=%s item=%s delta=%+d staff=%s',
+                serializer.data.get('ref'), tx_type, item.sku, delta, request.user.username,
             )
 
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-
-        logger.info(
-            'Transaction created: ref=%s type=%s item=%s delta=%+d staff=%s',
-            serializer.data.get('ref'), tx_type, item.sku, delta, request.user.username,
-        )
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        if is_many:
+            return Response(created_data, status=status.HTTP_201_CREATED)
+        else:
+            headers = self.get_success_headers(created_data[0])
+            return Response(created_data[0], status=status.HTTP_201_CREATED, headers=headers)
 
     def destroy(self, request, *args, **kwargs):
         """Transactions are immutable audit records — block deletes for non-managers."""

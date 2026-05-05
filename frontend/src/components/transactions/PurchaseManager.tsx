@@ -88,24 +88,8 @@ export const PurchaseManager = () => {
 
   const createTransactions = useMutation({
     mutationFn: async (payloads: any[]) => {
-      // Send items sequentially to avoid SQLite DB locks and browser connection limits,
-      // but catch errors individually so one failure doesn't block the rest.
-      let succeeded = 0;
-      let failed = 0;
-      for (const p of payloads) {
-        try {
-          await api.post(endpoints.transactions, p);
-          succeeded++;
-        } catch (error) {
-          console.error("Failed to save item:", p, error);
-          failed++;
-        }
-      }
-      if (failed > 0) {
-        throw new Error(
-          `${failed} of ${payloads.length} items failed to save.${succeeded > 0 ? ` ${succeeded} items were saved successfully.` : ''} Please check and retry the failed ones.`
-        );
-      }
+      // Send all items in a single bulk request. The backend will process them atomically.
+      await api.post(endpoints.transactions, payloads);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] });
@@ -488,6 +472,11 @@ export const PurchaseManager = () => {
                             const newLines = [...invoiceItems];
                             newLines[idx].itemDiscount = Number(e.target.value) || 0;
                             setInvoiceItems(newLines);
+                          }} onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (!editingTx) addItemLine();
+                            }
                           }} placeholder="0" />
                         </div>
                         <div className="w-24 text-right pb-3 pr-2">
