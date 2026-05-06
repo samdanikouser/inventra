@@ -162,7 +162,7 @@ export const PurchaseManager = () => {
         outlet: Number(invoiceHeader.outlet),
         supplier: invoiceHeader.supplier ? Number(invoiceHeader.supplier) : undefined,
         quantity_delta: line.qty,
-        value: line.qty * finalUnitPrice,
+        value: Number((line.qty * finalUnitPrice).toFixed(3)),
         notes: invoiceHeader.notes,
         date: `${invoiceHeader.date}T00:00:00Z`,
       };
