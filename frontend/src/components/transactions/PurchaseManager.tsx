@@ -397,38 +397,58 @@ export const PurchaseManager = () => {
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-left font-sans text-sm border-collapse">
-              <thead className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                <tr>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Item</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Qty</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Value</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedGroup?.transactions.map((tx: Transaction) => (
-                  <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
-                    <td className="px-6 py-4 font-bold">{tx.item_name}</td>
-                    <td className="px-6 py-4 text-right font-medium text-emerald-600">+{tx.quantity_delta}</td>
-                    <td className="px-6 py-4 text-right font-bold">{formatKD(tx.value)}</td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => openEdit(tx)} className="text-gray-400 hover:text-black transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDelete(tx)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!selectedGroup?.transactions.length && (
+            <div className="flex flex-col bg-white">
+              <div className="p-6 border-b border-[#E5E7EB] flex flex-col md:flex-row md:items-start justify-between gap-4 bg-[#F9FAFB]">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <button onClick={() => setSelectedRef(null)} className="text-[#6B7280] hover:text-[#1A1A1A] transition-colors text-xs font-bold flex items-center gap-1"><X className="w-3.5 h-3.5" /> Close</button>
+                    <h3 className="text-sm font-black text-[#1A1A1A]">{selectedGroup?.ref}</h3>
+                  </div>
+                  <div className="flex flex-col gap-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+                    <span>Supplier: {selectedGroup?.supplier_name || '—'}</span>
+                    <span>Destination: {selectedGroup?.outlet_name}</span>
+                    <span>Date: {selectedGroup ? new Date(selectedGroup.date).toLocaleDateString() : ''}</span>
+                    {selectedGroup?.transactions[0]?.notes && <span>Notes: {selectedGroup.transactions[0].notes}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                   <div className="text-[10px] font-black uppercase text-[#9CA3AF] tracking-widest">Total Bill Value</div>
+                   <div className="text-2xl font-black text-[#1A1A1A]">{formatKD(selectedGroup?.total_value || 0)}</div>
+                </div>
+              </div>
+              <table className="w-full text-left font-sans text-sm border-collapse">
+                <thead className="bg-white border-b border-[#E5E7EB]">
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-[#6B7280] text-xs font-medium">
-                      No items found for this receipt
-                    </td>
+                    <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Item</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Qty</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-right">Net Value</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider text-center">Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {selectedGroup?.transactions.map((tx: Transaction) => (
+                    <tr key={tx.id} className="border-b border-[#F3F4F6] hover:bg-[#F9FAFB] transition-colors">
+                      <td className="px-6 py-4 font-bold">{tx.item_name}</td>
+                      <td className="px-6 py-4 text-right font-medium text-emerald-600">+{tx.quantity_delta}</td>
+                      <td className="px-6 py-4 text-right font-bold">{formatKD(tx.value)}</td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => openEdit(tx)} className="text-gray-400 hover:text-black transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleDelete(tx)} className="text-gray-400 hover:text-rose-600 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!selectedGroup?.transactions.length && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-[#6B7280] text-xs font-medium">
+                        No items found for this receipt
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
