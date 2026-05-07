@@ -155,6 +155,20 @@ export const PurchaseManager = () => {
       // Chain: Gross → apply item discount → apply invoice discount
       const afterItemDisc = line.grossPrice * (1 - line.itemDiscount / 100);
       const finalUnitPrice = afterItemDisc * invoiceDiscountRatio;
+      const noteParts = [];
+      if (invoiceHeader.notes) noteParts.push(invoiceHeader.notes);
+      
+      const discParts = [];
+      if (discount.value > 0) {
+        discParts.push(discount.type === 'AMOUNT' ? `Inv: KD ${discount.value}` : `Inv: ${discount.value}%`);
+      }
+      if (line.itemDiscount > 0) {
+        discParts.push(`Line: ${line.itemDiscount}%`);
+      }
+      if (discParts.length > 0) {
+        noteParts.push(`[Discounts: ${discParts.join(', ')}]`);
+      }
+
       return {
         ref: finalRef,
         type: 'PURCHASE',
@@ -163,7 +177,7 @@ export const PurchaseManager = () => {
         supplier: invoiceHeader.supplier ? Number(invoiceHeader.supplier) : undefined,
         quantity_delta: line.qty,
         value: Number((line.qty * finalUnitPrice).toFixed(3)),
-        notes: invoiceHeader.notes,
+        notes: noteParts.join(' '),
         date: `${invoiceHeader.date}T00:00:00Z`,
       };
     });
@@ -196,12 +210,15 @@ export const PurchaseManager = () => {
   };
 
   const handleEditGroup = (group: any) => {
+    const rawNotes = group.transactions[0]?.notes || '';
+    const cleanNotes = rawNotes.split(' [Discounts:')[0].trim();
+
     setInvoiceHeader({
       supplier: group.transactions[0]?.supplier ? String(group.transactions[0]?.supplier) : '',
       outlet: String(group.transactions[0]?.outlet || ''),
       invoiceRef: group.ref,
       date: group.date.split('T')[0],
-      notes: group.transactions[0]?.notes || '',
+      notes: cleanNotes,
     });
     setInvoiceItems(group.transactions.map((tx: Transaction) => ({
       itemId: String(tx.item),
